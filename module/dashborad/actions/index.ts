@@ -7,6 +7,49 @@ import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { Octokit } from "octokit"
 import prisma from "@/lib/db"
+import { dataTagErrorSymbol } from "@tanstack/react-query"
+
+export async function getContributionStats() {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    })
+    if (!session) {
+      throw new Error("Unauthorized")
+    }
+
+    const token = await getGithubToken()
+    const octokit = new Octokit({ auth: token })
+
+    // Get users github username
+
+    const { data: user } = await octokit.rest.users.getAuthenticated()
+
+    const userName = user.login;
+
+    const calendar = await fetchUserContribution(token, userName)
+
+    if (!calendar) {
+      return null
+    }
+
+    const contributions = calendar.weeks.flatMap((week: any) =>
+      week.contributionDays.map((day: any) => ({
+        date: day.date,
+        count: day.contributionCount,
+        level: Math.min(4, Math.floor(day.contributionCount / 3)),
+      }))
+    )
+
+    return {
+      contributions,
+      totalContributions:calendar.totalContributions
+    }
+  } catch (error) {
+    console.error("Error fetching contribution stats:", error);
+    return null;
+  }
+}
 
 export async function getDashboardStats() {
   try {
@@ -17,18 +60,19 @@ export async function getDashboardStats() {
       throw new Error("Unauthorized")
     }
 
-    const token = await getGithubToken();
-    const octokit = new Octokit({ auth: token });
+    const token = await getGithubToken()
+    const octokit = new Octokit({ auth: token })
 
     // Get users github username
 
-    const { data: user } = await octokit.rest.users.getAuthenticated();
+    const { data: user } = await octokit.rest.users.getAuthenticated()
 
     // TODO: FETCH TOTAL CONNECTED REPO FROM DB;
-    const totalRepos = 30;
+    const totalRepos = 30
 
-    const calender = await fetchUserContribution(token, user.login);
-    const totalCommits = calender?.totalContributions || 0;
+    const calendar = await fetchUserContribution(token, user.login)
+
+    const totalCommits = calendar?.totalContributions || 0
 
     // Count Prs from database or github
     const { data: prs } = await octokit.rest.search.issuesAndPullRequests({
@@ -71,9 +115,9 @@ export async function getMonthlyActivity() {
     const octokit = new Octokit({ auth: token })
     const { data: user } = await octokit.rest.users.getAuthenticated()
 
-    const calender = await fetchUserContribution(token, user.login)
+    const calendar = await fetchUserContribution(token, user.login)
 
-    if (!calender) {
+    if (!calendar) {
       return []
     }
 
@@ -103,7 +147,7 @@ export async function getMonthlyActivity() {
       monthlyData[monthKey] = { commits: 0, prs: 0, reviews: 0 }
     }
 
-    calender.weeks.forEach((week: any) => {
+    calendar.weeks.forEach((week: any) => {
       week.conrtibutionDays.forEach((day: any) => {
         const date = new Date(day.date)
         const monthKey = monthNames[date.getMonth()]
@@ -163,7 +207,6 @@ export async function getMonthlyActivity() {
       name,
       ...monthlyData[name],
     }))
-
   } catch (error) {
     console.error("Error fetching monthly activity:", error)
     return []

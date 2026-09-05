@@ -33,15 +33,15 @@ export const fetchUserContribution = async (
   const octokit = new Octokit({ auth: token })
 
   const query = `
-   query($userName:String){
-        user(login:$userName){
-            contributionCollection {
-                contributionCalender{
+   query($userName: String!){
+        user(login: $userName){
+            contributionsCollection {
+                contributionCalendar{
                    totalContributions
                    weeks{
                        contributionDays{
                            contributionCount
-                           data
+                           date
                            color
                        }
                    }
@@ -53,12 +53,12 @@ export const fetchUserContribution = async (
    `
     // interface contributiondata{
     //     user:{
-    //         contributionCollection:{
+    //         contributionsCollection:{
     //             contributionCalender:{
     //                 totalContributions:number,
     //                 weeks:{
     //                     conrtibutionCount:number,
-    //                     data:string | Date,
+    //                     date:string | Date,
     //                     color:string
     //                 }
     //             }
@@ -70,9 +70,10 @@ export const fetchUserContribution = async (
     const response:any = await octokit.graphql(query,{
         userName
     })
-    return response.user.contributionCollection.contributionCalender
+    return response?.user?.contributionsCollection?.contributionCalendar
 
    } catch (error) {
-    
+    console.error("Error fetching contributions:", error);
+    return null;
    }
 }
