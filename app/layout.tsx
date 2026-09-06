@@ -4,6 +4,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
 import { QueryProvider } from "@/components/providers/query-provider"
+import { Toaster } from "@/components/ui/toast"
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" })
 
@@ -37,6 +38,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {children}
+            <Toaster/>
           </ThemeProvider>
         </QueryProvider>
       </body>

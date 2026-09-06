@@ -148,7 +148,7 @@ export async function getMonthlyActivity() {
     }
 
     calendar.weeks.forEach((week: any) => {
-      week.conrtibutionDays.forEach((day: any) => {
+      week.contributionDays.forEach((day: any) => {
         const date = new Date(day.date)
         const monthKey = monthNames[date.getMonth()]
         if (monthlyData[monthKey]) {
