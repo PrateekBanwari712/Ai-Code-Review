@@ -51,74 +51,103 @@ export const fetchUserContribution = async (
         }
    }
    `
-    // interface contributiondata{
-    //     user:{
-    //         contributionsCollection:{
-    //             contributionCalender:{
-    //                 totalContributions:number,
-    //                 weeks:{
-    //                     conrtibutionCount:number,
-    //                     date:string | Date,
-    //                     color:string
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+  // interface contributiondata{
+  //     user:{
+  //         contributionsCollection:{
+  //             contributionCalender:{
+  //                 totalContributions:number,
+  //                 weeks:{
+  //                     conrtibutionCount:number,
+  //                     date:string | Date,
+  //                     color:string
+  //                 }
+  //             }
+  //         }
+  //     }
+  // }
 
-   try {
-    const response:any = await octokit.graphql(query,{
-        userName
+  try {
+    const response: any = await octokit.graphql(query, {
+      userName,
     })
     return response?.user?.contributionsCollection?.contributionCalendar
-
-   } catch (error) {
-    console.error("Error fetching contributions:", error);
-    return null;
-   }
+  } catch (error) {
+    console.error("Error fetching contributions:", error)
+    return null
+  }
 }
 
-export const getRepositories = async (page : number = 1, perPage: number = 10) =>{
-  const token = await getGithubToken();
-  const octokit = new Octokit({auth:token});
+export const getRepositories = async (
+  page: number = 1,
+  perPage: number = 10
+) => {
+  const token = await getGithubToken()
+  const octokit = new Octokit({ auth: token })
 
-  const {data} = await octokit.rest.repos.listForAuthenticatedUser({
-    sort:"updated",
-    direction:"desc",
-    visibility:"all",
-    per_page:perPage,
-    page:page
-    })
+  const { data } = await octokit.rest.repos.listForAuthenticatedUser({
+    sort: "updated",
+    direction: "desc",
+    visibility: "all",
+    per_page: perPage,
+    page: page,
+  })
 
-    return data;
-
+  return data
 }
 
-export const createWebhook = async (owner: string, repo: string) =>{
-    const token = await getGithubToken();
-    const octokit = new Octokit({auth:token});
+export const createWebhook = async (owner: string, repo: string) => {
+  const token = await getGithubToken()
+  const octokit = new Octokit({ auth: token })
 
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_BASE_URL}/api/webhooks/github`
+  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_BASE_URL}/api/webhooks/github`
 
-    const {data:hooks} = await octokit.rest.repos.listWebhooks({
-      owner, 
-      repo
-    })
+  const { data: hooks } = await octokit.rest.repos.listWebhooks({
+    owner,
+    repo,
+  })
 
-    const existingHook = hooks.find(hook=>hook.config.url === webhookUrl);
-    if(existingHook){
-      return existingHook
-    }
+  const existingHook = hooks.find((hook) => hook.config.url === webhookUrl)
+  if (existingHook) {
+    return existingHook
+  }
 
-    const {data} = await octokit.rest.repos.createWebhook({
+  const { data } = await octokit.rest.repos.createWebhook({
+    owner,
+    repo,
+    config: {
+      url: webhookUrl,
+      content_type: "json",
+    },
+    events: ["pull_request"],
+  })
+
+  return data
+}
+
+export const deleteWebhook = async (owner: string, repo: string) => {
+  const token = await getGithubToken()
+  const octokit = new Octokit({ auth: token })
+  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_BASE_URL}/api/webhook/github`
+
+  try {
+    const { data: hooks } = await octokit.rest.repos.listWebhooks({
       owner,
       repo,
-      config:{
-        url:webhookUrl,
-        content_type:"json"
-      },
-      events:["pull_request"]
-    });
+    })
 
-    return data;
+    const hookToDelete = hooks.find((hook) => hook.config.url === webhookUrl)
+    if (hookToDelete) {
+      await octokit.rest.repos.deleteWebhook({
+        owner,
+        repo,
+        hook_id: hookToDelete.id,
+      })
+      return true
+    }
+
+    return false
+  } catch (error) {
+    console.error("Error deleting webhook:", error)
+    return false
+  }
 }
