@@ -8,6 +8,7 @@ import { headers } from "next/headers"
 import { Octokit } from "octokit"
 import prisma from "@/lib/db"
 import { dataTagErrorSymbol } from "@tanstack/react-query"
+import { useRepository } from "@/module/repository/hooks/use-repositories"
 
 export async function getContributionStats() {
   try {
@@ -25,7 +26,7 @@ export async function getContributionStats() {
 
     const { data: user } = await octokit.rest.users.getAuthenticated()
 
-    const userName = user.login;
+    const userName = user.login
 
     const calendar = await fetchUserContribution(token, userName)
 
@@ -43,11 +44,11 @@ export async function getContributionStats() {
 
     return {
       contributions,
-      totalContributions:calendar.totalContributions
+      totalContributions: calendar.totalContributions,
     }
   } catch (error) {
-    console.error("Error fetching contribution stats:", error);
-    return null;
+    console.error("Error fetching contribution stats:", error)
+    return null
   }
 }
 
@@ -68,10 +69,9 @@ export async function getDashboardStats() {
     const { data: user } = await octokit.rest.users.getAuthenticated()
 
     // TODO: FETCH TOTAL CONNECTED REPO FROM DB;
+
     const totalRepos = 30
-
     const calendar = await fetchUserContribution(token, user.login)
-
     const totalCommits = calendar?.totalContributions || 0
 
     // Count Prs from database or github
