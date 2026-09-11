@@ -32,7 +32,7 @@ export const fetchRepositories = async (page: number=1, per_page:number = 10) =>
 
 export const connectRepositories = async(owner:string, repo: string, githubId:number)=>{
     const session = await auth.api.getSession({
-        headers: await headers()
+        headers: await headers(),
     });
 
     if(!session){
@@ -41,7 +41,11 @@ export const connectRepositories = async(owner:string, repo: string, githubId:nu
 
     // TODO: CHECL IF USER CAN CONNECT MORE REPO
 
-    const webhook = await createWebhook(owner, repo)
+    const webhook = await createWebhook(owner, repo);
+
+       if (!webhook) {
+    throw new Error("Failed to create GitHub webhook");
+  }
 
     if(webhook){
         await prisma.repository.create({
