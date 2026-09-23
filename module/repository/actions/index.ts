@@ -1,82 +1,100 @@
 "use server"
 import prisma from "@/lib/db"
 import { auth } from "@/lib/auth"
-import {headers} from "next/headers"
-import { createWebhook, getRepositories} from "@/module/github/lib/github"
+import { headers } from "next/headers"
+import { createWebhook, getRepositories } from "@/module/github/lib/github"
 import { inngest } from "@/inngest/client"
+import {
+  canConnectRepository,
+  decrementRepositoryCount,
+  incrementRepositoryCount,
+} from "@/module/payment/lib/subscription"
 
-export const fetchRepositories = async (page: number=1, per_page:number = 10) =>{
+export const fetchRepositories = async (
+  page: number = 1,
+  per_page: number = 10
+) => {
     const session = await auth.api.getSession({
-        headers: await headers()
+    headers: await headers(),
     })
 
-    if(!session) {
+  if (!session) {
         throw new Error("Unauthorized")
     }
 
     const githubRepos = await getRepositories(page, per_page)
 
     const dbRepos = await prisma.repository.findMany({
-        where:{
-            userId: session.user.id
-        }
-    });
+    where: {
+      userId: session.user.id,
+    },
+  })
 
-    const connectedReposId = new Set(dbRepos.map((repo)=>repo.githubId));
+  const connectedReposId = new Set(dbRepos.map((repo) => repo.githubId))
 
-    return githubRepos.map((repo :any) =>({
+  return githubRepos.map((repo: any) => ({
         ...repo,
-        isConnected: connectedReposId.has(BigInt(repo.id))
+    isConnected: connectedReposId.has(BigInt(repo.id)),
     }))
 }
 
-export const connectRepositories = async(owner:string, repo: string, githubId:number)=>{
+export const connectRepositories = async (
+  owner: string,
+  repo: string,
+  githubId: number
+) => {
     const session = await auth.api.getSession({
         headers: await headers(),
-    });
+  })
 
-    if(!session){
-        throw new Error("Unauthorized");
-    }
-
-    // TODO: CHECL IF USER CAN CONNECT MORE REPO
-
-    const webhook = await createWebhook(owner, repo);
-
-       if (!webhook) {
-    throw new Error("Failed to create GitHub webhook");
+  if (!session) {
+    throw new Error("Unauthorized")
   }
 
-    if(webhook){
+  const canConnect = await canConnectRepository(session.user.id)
+
+  if (!canConnect) {
+    throw new Error(
+      "Repository limit reached. Please upgrade to Pro for unlimited repositories."
+    )
+  }
+
+  const webhook = await createWebhook(owner, repo)
+
+       if (!webhook) {
+    throw new Error("Failed to create GitHub webhook")
+  }
+
+  if (webhook) {
         await prisma.repository.create({
-            data:{
+      data: {
                 githubId: BigInt(githubId),
                 name: repo,
                 owner,
                 fullName: `${owner}/${repo}`,
-                url:`https://github.com/${owner}/${repo}`,
-                userId: session.user.id
-            }
-        })
-    }
+        url: `https://github.com/${owner}/${repo}`,
+        userId: session.user.id,
+      },
+    })
 
-    // TODO: INCREASE REPOSITORY COUNT FOR USAGE TRACKING
+    await incrementRepositoryCount(session.user.id);
+    
 
     // TODO: TRIGGER REPOSITORY INDEXING FOR RAG (FIRE AND FORGET)
 
     try {
         await inngest.send({
-            name:"repository.connected",
-            data:{
+        name: "repository.connected",
+        data: {
                 owner,
                 repo,
-                userId:session.user.id
-            }
+          userId: session.user.id,
+        },
         })
     } catch (error) {
     console.error("Failed to trigger repository indexing:", error)        
     }
+  }
 
     return webhook
 }
-

@@ -67,7 +67,7 @@ export async function updateUserProfile(data: {
 
     return {
       success: true,
-      userr: updateUser,
+      user: updateUser,
     }
   } catch (error) {
     console.error("Error updating profile:", error)

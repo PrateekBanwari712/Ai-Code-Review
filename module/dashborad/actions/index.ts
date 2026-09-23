@@ -10,47 +10,6 @@ import prisma from "@/lib/db"
 import { dataTagErrorSymbol } from "@tanstack/react-query"
 import { useRepository } from "@/module/repository/hooks/use-repositories"
 
-export async function getContributionStats() {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    })
-    if (!session) {
-      throw new Error("Unauthorized")
-    }
-
-    const token = await getGithubToken()
-    const octokit = new Octokit({ auth: token })
-
-    // Get users github username
-
-    const { data: user } = await octokit.rest.users.getAuthenticated()
-
-    const userName = user.login
-
-    const calendar = await fetchUserContribution(token, userName)
-
-    if (!calendar) {
-      return null
-    }
-
-    const contributions = calendar.weeks.flatMap((week: any) =>
-      week.contributionDays.map((day: any) => ({
-        date: day.date,
-        count: day.contributionCount,
-        level: Math.min(4, Math.floor(day.contributionCount / 3)),
-      }))
-    )
-
-    return {
-      contributions,
-      totalContributions: calendar.totalContributions,
-    }
-  } catch (error) {
-    console.error("Error fetching contribution stats:", error)
-    return null
-  }
-}
 
 export async function getDashboardStats() {
   try {
@@ -99,6 +58,48 @@ export async function getDashboardStats() {
       totalReviews: 0,
       totalRepos: 0,
     }
+  }
+}
+
+export async function getContributionStats() {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    })
+    if (!session) {
+      throw new Error("Unauthorized")
+    }
+
+    const token = await getGithubToken()
+    const octokit = new Octokit({ auth: token })
+
+    // Get users github username
+
+    const { data: user } = await octokit.rest.users.getAuthenticated()
+
+    const userName = user.login
+
+    const calendar = await fetchUserContribution(token, userName)
+
+    if (!calendar) {
+      return null
+    }
+
+    const contributions = calendar.weeks.flatMap((week: any) =>
+      week.contributionDays.map((day: any) => ({
+        date: day.date,
+        count: day.contributionCount,
+        level: Math.min(4, Math.floor(day.contributionCount / 3)),
+      }))
+    )
+
+    return {
+      contributions,
+      totalContributions: calendar.totalContributions,
+    }
+  } catch (error) {
+    console.error("Error fetching contribution stats:", error)
+    return null
   }
 }
 
